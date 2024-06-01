@@ -13,3 +13,6 @@ log = "0.4"
 fdt = "0.1.5"
 buddy_system_allocator = "0.9.1"
 spin = { version = "0.9.8", features = ["mutex"] }
+yaxpeax-x86 = { version = "*", default-features = false, features = ["fmt"] }
+yaxpeax-arch = { version = "0.2.8", default-features = false }
+bit_field = "0.10.2"

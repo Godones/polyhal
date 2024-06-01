@@ -1,7 +1,7 @@
 # Building
-ARCH := riscv64
-QEMU_EXEC := timeout 40
-
+ARCH := x86_64
+QEMU_EXEC :=
+GDB ?= n
 
 ifeq ($(ARCH), x86_64)
   TARGET := x86_64-unknown-none
@@ -9,6 +9,7 @@ ifeq ($(ARCH), x86_64)
   KERNEL_BIN := $(KERNEL_ELF).bin
   QEMU_EXEC += qemu-system-x86_64 \
 				-machine q35 \
+				-enable-kvm \
 				-kernel $(KERNEL_ELF) \
 				-cpu IvyBridge-v2
   BUS := pci
@@ -62,11 +63,20 @@ clean:
 
 run: run-inner
 
-QEMU_EXEC += -nographic -smp 1 >output.log 2>&1
+QEMU_EXEC += -nographic -smp 1
+ifeq ($(GDB), y)
+  QEMU_EXEC += -s -S
+endif
 
 run-inner: build
-	$(QEMU_EXEC) || echo "QEMU exited"
-	grep "\[kernel\] Hello, world!" output.log
+	$(QEMU_EXEC)
+# grep "\[kernel\] Hello, world!" output.log
+
+gdb-server:
+	$(QEMU_EXEC) -s -S
+
+gdb-client:
+	gdb -ex "file $(KERNEL_ELF)" -ex "target remote :1234"
 
 test:
 	make ARCH=aarch64 run
@@ -74,4 +84,9 @@ test:
 	make ARCH=x86_64 run
 	make ARCH=loongarch64 run
 
+
+asm:
+	objdump -d $(KERNEL_ELF) > kernel.asm
+	vim kernel.asm
+	rm kernel.asm
 .PHONY: build env kernel clean run-inner

@@ -1,10 +1,15 @@
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
+extern crate alloc;
 
 mod allocator;
 mod frame;
+#[macro_use]
 mod logging;
+mod kprobe;
+mod ebreak;
+mod debug;
 
 use core::panic::PanicInfo;
 
@@ -12,6 +17,7 @@ use frame::frame_alloc;
 use polyhal::addr::PhysPage;
 use polyhal::{get_mem_areas, PageAlloc, TrapFrame, TrapType};
 use polyhal::{shutdown, TrapType::*};
+use polyhal::instruction::Instruction;
 
 pub struct PageAllocImpl;
 
@@ -30,7 +36,9 @@ impl PageAlloc for PageAllocImpl {
 fn kernel_interrupt(ctx: &mut TrapFrame, trap_type: TrapType) {
     // println!("trap_type @ {:x?} {:#x?}", trap_type, ctx);
     match trap_type {
-        Breakpoint => return,
+        Breakpoint => {
+            ebreak::ebreak_handler(ctx);
+        },
         UserEnvCall => {
             // jump to next instruction anyway
             ctx.syscall_ok();
@@ -38,6 +46,10 @@ fn kernel_interrupt(ctx: &mut TrapFrame, trap_type: TrapType) {
         }
         StorePageFault(_paddr) | LoadPageFault(_paddr) | InstructionPageFault(_paddr) => {
             log::info!("page fault");
+            panic!("page fault at {:#x?}", _paddr);
+        }
+        Debug => {
+            debug::debug_handler(ctx);
         }
         IllegalInstruction(_) => {
             log::info!("illegal instruction");
@@ -70,6 +82,9 @@ fn main(hartid: usize) {
         println!("init memory region {:#x} - {:#x}", start, start + size);
         frame::add_frame_range(start, start + size);
     });
+
+    kprobe::test_kprobe();
+
     panic!("end of rust_main!");
 }
 

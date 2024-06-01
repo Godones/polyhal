@@ -222,6 +222,7 @@ pub enum TrapType {
     LoadPageFault(usize),
     InstructionPageFault(usize),
     IllegalInstruction(usize),
+    Debug,
 }
 
 #[link_section = ".bss.stack"]

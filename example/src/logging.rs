@@ -79,14 +79,15 @@ pub fn puts(buffer: &[u8]) {
 
 #[macro_export]
 macro_rules! print {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::logging::print(format_args!($fmt $(, $($arg)+)?));
-    }
+    ($($arg:tt)*) => {
+        $crate::logging::print(format_args!("{}", format_args!($($arg)*)))
+    };
 }
 
 #[macro_export]
 macro_rules! println {
-    ($fmt: literal $(, $($arg: tt)+)?) => {
-        $crate::logging::print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));
-    }
+    () => ($crate::print!("\n"));
+    ($fmt:expr) => ($crate::print!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => ($crate::print!(
+        concat!($fmt, "\n"), $($arg)*));
 }

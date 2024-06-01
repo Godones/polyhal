@@ -99,6 +99,7 @@ fn kernel_callback(context: &mut TrapFrame) {
             );
         }
         APIC_TIMER_VECTOR => TrapType::Time,
+        DEBUG_VECTOR => TrapType::Debug,
         // IRQ_VECTOR_START..=IRQ_VECTOR_END => crate::trap::handle_irq_extern(tf.vector as _),
         _ => {
             panic!(
