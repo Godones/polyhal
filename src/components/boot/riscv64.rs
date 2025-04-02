@@ -36,7 +36,7 @@ pub(crate) static mut PAGE_TABLE: PageAlignment = {
 #[no_mangle]
 #[link_section = ".text.entry"]
 unsafe extern "C" fn _start() -> ! {
-    core::arch::asm!(
+    core::arch::naked_asm!(
         // Chcek boot core
         "
             beqz    a0, 2f
@@ -71,8 +71,7 @@ unsafe extern "C" fn _start() -> ! {
         boot_stack = sym crate::components::boot::BOOT_STACK,
         page_table = sym PAGE_TABLE,
         entry = sym rust_main,
-        virt_addr_start = const VIRT_ADDR_START,
-        options(noreturn),
+        virt_addr_start = const VIRT_ADDR_START
     )
 }
 
@@ -82,7 +81,7 @@ unsafe extern "C" fn _start() -> ! {
 #[naked]
 #[no_mangle]
 pub(crate) unsafe extern "C" fn secondary_start() -> ! {
-    core::arch::asm!(
+    core::arch::naked_asm!(
         // 1. Set Stack Pointer.
         // sp = a1(given Stack Pointer.)
         "
@@ -112,7 +111,6 @@ pub(crate) unsafe extern "C" fn secondary_start() -> ! {
         page_table = sym PAGE_TABLE,
         entry = sym rust_secondary_main,
         virt_addr_start = const VIRT_ADDR_START,
-        options(noreturn)
     );
 }
 
@@ -161,7 +159,7 @@ pub(crate) fn rust_main(hartid: usize, device_tree: usize) {
 }
 
 /// Secondary Main function Entry.
-/// 
+///
 /// Supports MultiCore, Boot in this function.
 pub(crate) extern "C" fn rust_secondary_main(hartid: usize) {
     crate::components::percpu::set_local_thread_pointer(hartid);

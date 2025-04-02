@@ -11,12 +11,13 @@ polyhal = { version = "0.1.2", features = [
   "logger",
   "boot",
   "trap",
-  "graphic"
+  "graphic",
 ] }
 log = "0.4"
 fdt = "0.1.5"
 buddy_system_allocator = "0.9.1"
 spin = { version = "0.9.8", features = ["mutex"] }
+kprobe = { path = "../../ext_ebpf/kprobe" }
 
 [patch.crates-io.polyhal]
 path = ".."

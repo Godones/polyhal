@@ -1,12 +1,12 @@
 use crate::components::{consts::VIRT_ADDR_START, timer, trapframe::TrapFrame};
-use core::arch::{asm, global_asm};
+use core::arch::{global_asm, naked_asm};
 use riscv::register::{
     scause::{self, Exception, Interrupt, Trap},
     stval, stvec,
 };
 
-use crate::components::trap::TrapType;
 use crate::components::trap::EscapeReason;
+use crate::components::trap::TrapType;
 
 global_asm!(
     r"
@@ -136,7 +136,7 @@ fn kernel_callback(context: &mut TrapFrame) -> TrapType {
 
 #[naked]
 pub unsafe extern "C" fn kernelvec() {
-    asm!(
+    naked_asm!(
         // 宏定义
         r"
             .align 4
@@ -159,7 +159,6 @@ pub unsafe extern "C" fn kernelvec() {
             sret
         ",
         cx_size = const crate::components::trapframe::TRAPFRAME_SIZE,
-        options(noreturn)
     )
 }
 
@@ -167,7 +166,7 @@ pub unsafe extern "C" fn kernelvec() {
 #[no_mangle]
 extern "C" fn user_restore(context: *mut TrapFrame) {
     unsafe {
-        asm!(
+        naked_asm!(
             r"
                 .align 4
                 .altmacro
@@ -207,7 +206,6 @@ extern "C" fn user_restore(context: *mut TrapFrame) {
                 LOAD_GENERAL_REGS
                 sret
             ",
-            options(noreturn)
         )
     }
 }
@@ -216,7 +214,7 @@ extern "C" fn user_restore(context: *mut TrapFrame) {
 #[no_mangle]
 #[allow(named_asm_labels)]
 pub unsafe extern "C" fn uservec() {
-    asm!(
+    naked_asm!(
         r"
         .altmacro
     ",
@@ -256,7 +254,6 @@ pub unsafe extern "C" fn uservec() {
         "addi sp, sp, 18*8
         ret
     ",
-        options(noreturn)
     );
 }
 

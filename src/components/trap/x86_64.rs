@@ -1,4 +1,4 @@
-use core::arch::{asm, global_asm};
+use core::arch::{asm, global_asm,naked_asm};
 use core::mem::{offset_of, size_of};
 
 use bitflags::bitflags;
@@ -86,6 +86,9 @@ fn kernel_callback(context: &mut TrapFrame) {
             unsafe { local_apic().end_of_interrupt() };
             TrapType::Timer
         }
+        0x6 => {
+            TrapType::Other
+        }
         // PIC IRQS
         0x20..=0x2f => TrapType::Irq(irq::IRQVector(
             context.vector as usize - PIC_VECTOR_OFFSET as usize,
@@ -103,7 +106,7 @@ fn kernel_callback(context: &mut TrapFrame) {
 #[naked]
 #[no_mangle]
 pub unsafe extern "C" fn kernelvec() {
-    asm!(
+    naked_asm!(
         r"
             sub     rsp, 16                     # push fs_base, gs_base
 
@@ -146,14 +149,13 @@ pub unsafe extern "C" fn kernelvec() {
             iretq
         ",
         trap_handler = sym kernel_callback,
-        options(noreturn)
     )
 }
 
 #[naked]
 #[no_mangle]
 pub unsafe extern "C" fn uservec() {
-    asm!(
+    naked_asm!(
         r"
             sub     rsp, 16
 
@@ -195,7 +197,6 @@ pub unsafe extern "C" fn uservec() {
         ",
         // PERCPU_KERNEL_RSP_OFFSET = const PERCPU_KERNEL_RSP_OFFSET,
         PERCPU_KERNEL_RSP_OFFSET = const offset_of!(PerCPUReserved, kernel_rsp),
-        options(noreturn)
     );
 }
 
@@ -203,7 +204,7 @@ pub unsafe extern "C" fn uservec() {
 #[no_mangle]
 pub extern "C" fn user_restore(context: *mut TrapFrame) {
     unsafe {
-        asm!(
+        naked_asm!(
             // Save callee saved registers and cs and others.
             r"
                 mov ecx, 0xC0000100
@@ -262,14 +263,13 @@ pub extern "C" fn user_restore(context: *mut TrapFrame) {
             sysretq = sym sysretq,
             // PERCPU_KERNEL_RSP_OFFSET = const PERCPU_KERNEL_RSP_OFFSET,
             PERCPU_KERNEL_RSP_OFFSET = const offset_of!(PerCPUReserved, kernel_rsp),
-            options(noreturn)
         )
     }
 }
 
 #[naked]
 unsafe extern "C" fn sysretq() {
-    asm!(
+    naked_asm!(
         "
             pop rcx
             add rsp, 8
@@ -279,7 +279,6 @@ unsafe extern "C" fn sysretq() {
 
             sysretq
         ",
-        options(noreturn)
     )
 }
 
@@ -309,7 +308,7 @@ pub fn init_syscall() {
 
 #[naked]
 unsafe extern "C" fn syscall_entry() {
-    asm!(
+    naked_asm!(
         r"
             swapgs
             mov     gs:{PERCPU_USER_RSP_OFFSET}, rsp
@@ -371,7 +370,6 @@ unsafe extern "C" fn syscall_entry() {
         PERCPU_USER_CONTEXT_OFFSET = const offset_of!(PerCPUReserved, user_context),
         PERCPU_USER_RSP_OFFSET = const offset_of!(PerCPUReserved, user_rsp),
         PERCPU_KERNEL_RSP_OFFSET = const offset_of!(PerCPUReserved, kernel_rsp),
-        options(noreturn)
     )
 }
 

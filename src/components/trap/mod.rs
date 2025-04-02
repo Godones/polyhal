@@ -19,6 +19,7 @@ pub enum TrapType {
     InstructionPageFault(usize),
     IllegalInstruction(usize),
     Irq(IRQVector),
+    Other
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

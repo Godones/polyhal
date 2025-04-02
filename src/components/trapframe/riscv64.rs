@@ -3,6 +3,7 @@ use core::{
     ops::{Index, IndexMut},
 };
 
+use kprobe::ProbeArgs;
 use riscv::register::sstatus::{self, Sstatus, SPP};
 
 use crate::components::trapframe::TrapFrameArgs;
@@ -15,6 +16,18 @@ pub struct TrapFrame {
     pub sstatus: Sstatus,
     pub sepc: usize,
     pub fsx: [usize; 2],
+}
+impl ProbeArgs for TrapFrame {
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+    fn break_address(&self) -> usize {
+        // for riscv64
+        self.sepc - 2
+    }
+    fn debug_address(&self) -> usize {
+        self.sepc - 2
+    }
 }
 
 impl Debug for TrapFrame {

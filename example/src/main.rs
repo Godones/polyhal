@@ -1,9 +1,11 @@
 #![no_std]
 #![no_main]
-#![feature(panic_info_message)]
-
+extern crate alloc;
 mod allocator;
+mod debug;
+mod ebreak;
 mod frame;
+mod kprobe;
 mod logging;
 mod pci;
 use core::panic::PanicInfo;
@@ -12,9 +14,8 @@ use core::sync::atomic::{AtomicU32, Ordering};
 use frame::frame_alloc;
 use polyhal::addr::PhysPage;
 use polyhal::common::{get_fdt, get_mem_areas, PageAlloc};
-use polyhal::debug_console::DebugConsole;
 use polyhal::define_entry;
-use polyhal::instruction::{ebreak, shutdown};
+use polyhal::instruction::{shutdown};
 use polyhal::trap::TrapType::{self, *};
 use polyhal::trapframe::{TrapFrame, TrapFrameArgs};
 
@@ -37,6 +38,7 @@ fn kernel_interrupt(ctx: &mut TrapFrame, trap_type: TrapType) {
     match trap_type {
         Breakpoint => {
             log::info!("BreakPoint @ {:#x}", ctx[TrapFrameArgs::SEPC]);
+            ebreak::EBreak::handle(ctx);
         }
         SysCall => {
             // jump to next instruction anyway
@@ -96,29 +98,30 @@ fn main(hartid: usize) {
     }
 
     // Boot another core that id is 1.
-    #[cfg(not(target_arch = "x86_64"))]
-    {
-        use polyhal::consts::VIRT_ADDR_START;
+    // #[cfg(not(target_arch = "x86_64"))]
+    // {
+    //     use polyhal::consts::VIRT_ADDR_START;
 
-        use polyhal::multicore::boot_core;
-        use polyhal::pagetable::PAGE_SIZE;
-        let sp = frame_alloc(16);
-        boot_core(1, (sp.to_addr() | VIRT_ADDR_START) + 16 * PAGE_SIZE);
-        // Waiting for Core Booting
-        while CORE_SET.fetch_and(1 << 1, Ordering::SeqCst) == 0 {}
-        log::info!("Core 1 Has Booted successfully!");
-    }
+    //     use polyhal::multicore::boot_core;
+    //     use polyhal::pagetable::PAGE_SIZE;
+    //     let sp = frame_alloc(16);
+    //     boot_core(1, (sp.to_addr() | VIRT_ADDR_START) + 16 * PAGE_SIZE);
+    //     // Waiting for Core Booting
+    //     while CORE_SET.fetch_and(1 << 1, Ordering::SeqCst) == 0 {}
+    //     log::info!("Core 1 Has Booted successfully!");
+    // }
 
     // Test BreakPoint Interrupt
-    ebreak();
+    // ebreak();
+    kprobe::kprobe_test();
 
     crate::pci::init();
 
-    loop {
-        if let Some(c) = DebugConsole::getchar() {
-            DebugConsole::putchar(c);
-        }
-    }
+    // loop {
+    //     if let Some(c) = DebugConsole::getchar() {
+    //         DebugConsole::putchar(c);
+    //     }
+    // }
 
     log::info!("Run END. Shutdown successfully.");
     shutdown();
@@ -133,10 +136,10 @@ fn panic(info: &PanicInfo) -> ! {
             "[kernel] Panicked at {}:{} \n\t{}",
             location.file(),
             location.line(),
-            info.message().unwrap()
+            info.message()
         );
     } else {
-        log::error!("[kernel] Panicked: {}", info.message().unwrap());
+        log::error!("[kernel] Panicked: {}", info.message());
     }
     shutdown()
 }
