@@ -2,9 +2,8 @@ super::define_arch_mods!();
 
 use core::ops::Deref;
 
-use crate::{components::common::frame_alloc, utils::bit, PhysAddr, PhysPage, VirtAddr, VirtPage};
-
 use super::common::frame_dealloc;
+use crate::{components::common::frame_alloc, utils::bit, PhysAddr, PhysPage, VirtAddr, VirtPage};
 
 /// The size of the page table.
 pub const PAGE_SIZE: usize = PageTable::PAGE_SIZE;

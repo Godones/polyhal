@@ -2,8 +2,7 @@
 //!
 //!
 
-use super::irq::IRQVector;
-use super::trapframe::TrapFrame;
+use super::{irq::IRQVector, trapframe::TrapFrame};
 
 super::define_arch_mods!();
 
@@ -19,7 +18,8 @@ pub enum TrapType {
     InstructionPageFault(usize),
     IllegalInstruction(usize),
     Irq(IRQVector),
-    Other
+    Debug,
+    Other,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

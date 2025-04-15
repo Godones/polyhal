@@ -1,8 +1,10 @@
-use core::cell::UnsafeCell;
-use core::fmt;
-use core::mem::MaybeUninit;
-use core::ops::{Deref, DerefMut};
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::{
+    cell::UnsafeCell,
+    fmt,
+    mem::MaybeUninit,
+    ops::{Deref, DerefMut},
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 pub struct LazyInit<T> {
     inited: AtomicBool,

@@ -8,16 +8,22 @@ mod frame;
 mod kprobe;
 mod logging;
 mod pci;
-use core::panic::PanicInfo;
-use core::sync::atomic::{AtomicU32, Ordering};
+use alloc::vec::Vec;
+use core::{
+    panic::PanicInfo,
+    sync::atomic::{AtomicU32, Ordering},
+};
 
 use frame::frame_alloc;
-use polyhal::addr::PhysPage;
-use polyhal::common::{get_fdt, get_mem_areas, PageAlloc};
-use polyhal::define_entry;
-use polyhal::instruction::{shutdown};
-use polyhal::trap::TrapType::{self, *};
-use polyhal::trapframe::{TrapFrame, TrapFrameArgs};
+use polyhal::{
+    addr::PhysPage,
+    common::{get_fdt, get_mem_areas, PageAlloc},
+    define_entry,
+    instruction::shutdown,
+    trap::TrapType::{self, *},
+    trapframe::{TrapFrame, TrapFrameArgs},
+};
+use rbpf::ebpf::to_insn_vec;
 
 pub struct PageAllocImpl;
 
@@ -40,6 +46,10 @@ fn kernel_interrupt(ctx: &mut TrapFrame, trap_type: TrapType) {
             log::info!("BreakPoint @ {:#x}", ctx[TrapFrameArgs::SEPC]);
             ebreak::EBreak::handle(ctx);
         }
+        Debug => {
+            log::info!("Debug @ {:#x}", ctx[TrapFrameArgs::SEPC]);
+            debug::DebugException::handle(ctx);
+        }
         SysCall => {
             // jump to next instruction anyway
             ctx.syscall_ok();
@@ -61,6 +71,51 @@ fn kernel_interrupt(ctx: &mut TrapFrame, trap_type: TrapType) {
 }
 
 static CORE_SET: AtomicU32 = AtomicU32::new(0);
+
+fn test_bpf_to_bpf_call() {
+    let test_code = rbpf::assembler::assemble(
+        "
+    mov64 r1, 0x10
+    mov64 r2, 0x1
+    call 0x4
+    mov64 r1, 0x1
+    mov64 r2, r0
+    call 0x4
+    exit
+    mov64 r0, r1
+    sub64 r0, r2
+    exit
+    mov64 r0, r2
+    add64 r0, r1
+    exit
+    ",
+    )
+    .unwrap();
+    let mut code = to_insn_vec(&test_code);
+    let mut real_code = Vec::new();
+    code.iter_mut().for_each(|insn| {
+        if insn.opc == rbpf::ebpf::CALL {
+            insn.src = 0x1;
+        }
+        real_code.extend_from_slice(&insn.to_array());
+    });
+    let mut vm = rbpf::EbpfVmNoData::new(Some(&real_code)).unwrap();
+    let vm_res = vm.execute_program().unwrap();
+    assert_eq!(vm_res, 0x10);
+
+    println!("BPF to BPF call without JIT test success!");
+    let mem = frame_alloc(1);
+    let buf = mem.get_buffer();
+    // #[cfg(target_arch = "x86_64")]
+    // {
+    //     let jit = vm.jit_compile(buf).unwrap();
+    //     let vm_res = unsafe { vm.execute_program_jit() }.unwrap();
+    //     assert_eq!(vm_res, 0x10);
+    //     println!("BPF to BPF call with JIT test success!");
+    // }
+
+    println!("BPF to BPF call test success!");
+}
 
 /// kernel main function, entry point.
 fn main(hartid: usize) {
@@ -112,8 +167,8 @@ fn main(hartid: usize) {
     // }
 
     // Test BreakPoint Interrupt
-    // ebreak();
     kprobe::kprobe_test();
+    test_bpf_to_bpf_call();
 
     crate::pci::init();
 
@@ -128,7 +183,6 @@ fn main(hartid: usize) {
 }
 
 define_entry!(main);
-
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     if let Some(location) = info.location() {

@@ -1,10 +1,9 @@
 use alloc::vec::Vec;
+
 use fdt::Fdt;
 
-use crate::components::arch::arch_init;
-use crate::{utils::LazyInit, PhysPage};
-
 use super::debug_console::display_info;
+use crate::{components::arch::arch_init, utils::LazyInit, PhysPage};
 
 #[polyhal_macro::def_percpu]
 pub(crate) static CPU_ID: usize = 0;
@@ -70,8 +69,8 @@ pub(crate) fn frame_dealloc(ppn: PhysPage) {
 }
 
 /// Parse Information from the device tree binary
-/// 
-/// Display information when booting 
+///
+/// Display information when booting
 /// Initialize the variables and memory from device tree
 #[inline]
 pub(crate) fn parse_dtb_info() {

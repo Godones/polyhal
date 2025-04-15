@@ -4,7 +4,7 @@ use core::{
 };
 
 use x86_64::registers::rflags::RFlags;
-
+use kprobe::ProbeArgs;
 use crate::components::{arch::gdt::GdtStruct, trapframe::TrapFrameArgs};
 
 #[repr(C, align(16))]
@@ -89,6 +89,19 @@ pub struct TrapFrame {
 
     // save fx area
     pub fx_area: FxsaveArea,
+}
+
+
+impl ProbeArgs for TrapFrame {
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+    fn break_address(&self) -> usize {
+        self.rip - 1
+    }
+    fn debug_address(&self) -> usize {
+        self.rip
+    }
 }
 
 impl TrapFrame {

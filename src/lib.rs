@@ -147,28 +147,26 @@ pub(crate) mod drivers;
 pub mod time;
 pub mod utils;
 
+// Re export the Module like Structure.
+pub use addr::{PhysAddr, PhysPage, VirtAddr, VirtPage};
+pub use components::pagetable::{MappingFlags, MappingSize, PageTable, PageTableWrapper};
 #[cfg(feature = "boot")]
 pub use polyhal_macro::arch_entry;
 #[cfg(feature = "trap")]
 pub use polyhal_macro::arch_interrupt;
-
-// Re export the Module like Structure.
-pub use addr::{PhysAddr, PhysPage, VirtAddr, VirtPage};
-pub use components::pagetable::{MappingFlags, MappingSize, PageTable, PageTableWrapper};
 pub use time::Time;
 
 #[cfg(test)]
 pub mod tests {
-    use crate::api::frame_alloc;
-    use crate::debug::{print, println};
-    use crate::get_mem_areas;
-    use crate::shutdown;
-    use crate::PageAlloc;
-    use crate::PhysPage;
-    use crate::TrapFrame;
-    use crate::TrapType;
-    use buddy_system_allocator::LockedHeap;
     use core::panic::PanicInfo;
+
+    use buddy_system_allocator::LockedHeap;
+
+    use crate::{
+        api::frame_alloc,
+        debug::{print, println},
+        get_mem_areas, shutdown, PageAlloc, PhysPage, TrapFrame, TrapType,
+    };
 
     pub fn test_runner(tests: &[&dyn Fn()]) {
         crate::debug::println!("Running {} tests", tests.len());

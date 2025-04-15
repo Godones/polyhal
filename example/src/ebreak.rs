@@ -15,7 +15,7 @@ impl EBreak {
     }
     fn kprobe_handler(frame: &mut TrapFrame) {
         let break_addr = frame.break_address();
-        log::debug!("EBreak: break_addr: {:#x}", break_addr);
+        // log::debug!("EBreak: break_addr: {:#x}", break_addr);
         let guard = KPROBE_MANAGER.lock();
         let kprobe_list = guard.get_break_list(break_addr);
         if let Some(kprobe_list) = kprobe_list {

@@ -86,6 +86,7 @@ fn kernel_callback(context: &mut TrapFrame) {
             unsafe { local_apic().end_of_interrupt() };
             TrapType::Timer
         }
+        0x1 => TrapType::Debug,
         0x6 => {
             TrapType::Other
         }

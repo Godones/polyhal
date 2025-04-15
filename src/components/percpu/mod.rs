@@ -7,9 +7,9 @@ super::define_arch_mods!();
 use alloc::alloc::alloc;
 use core::{alloc::Layout, mem::size_of, ptr::copy_nonoverlapping};
 
-use super::pagetable::PAGE_SIZE;
-
 pub use polyhal_macro::def_percpu;
+
+use super::pagetable::PAGE_SIZE;
 
 #[repr(align(8))]
 struct PerCPUDATA([u8; PAGE_SIZE]);

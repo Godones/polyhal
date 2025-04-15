@@ -1,4 +1,5 @@
 use alloc::string::ToString;
+
 use kprobe::{
     register_kprobe, unregister_kprobe, KprobeBuilder, KprobeManager, KprobePointList, ProbeArgs,
 };
@@ -9,14 +10,32 @@ use spin::Mutex;
 pub static KPROBE_MANAGER: Mutex<KprobeManager> = Mutex::new(KprobeManager::new());
 static KPROBE_POINT_LIST: Mutex<KprobePointList> = Mutex::new(KprobePointList::new());
 
-#[cfg(target_arch = "riscv64")]
 pub fn setup_single_step(frame: &mut TrapFrame, step_addr: usize) {
-    frame.sepc = step_addr;
+    #[cfg(target_arch = "riscv64")]
+    {
+        frame.sepc = step_addr;
+    }
+    #[cfg(target_arch = "x86_64")]
+    {
+        // x86_64 does not need to set the sepc
+        // frame.sepc = step_addr;
+        frame.rip = step_addr;
+        frame.rflags |= 0x100; // Set the TF flag
+    }
 }
 
-#[cfg(target_arch = "riscv64")]
 pub fn clear_single_step(frame: &mut TrapFrame, return_addr: usize) {
-    frame.sepc = return_addr;
+    #[cfg(target_arch = "riscv64")]
+    {
+        frame.sepc = return_addr;
+    }
+    #[cfg(target_arch = "x86_64")]
+    {
+        // x86_64 does not need to set the sepc
+        // frame.sepc = return_addr;
+        frame.rip = return_addr;
+        frame.rflags &= !0x100; // Clear the TF flag
+    }
 }
 
 #[inline(never)]
