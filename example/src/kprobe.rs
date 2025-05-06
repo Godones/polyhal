@@ -7,7 +7,7 @@ use log::info;
 use polyhal::trapframe::{TrapFrame, TrapFrameArgs};
 use spin::Mutex;
 
-pub static KPROBE_MANAGER: Mutex<KprobeManager> = Mutex::new(KprobeManager::new());
+pub static KPROBE_MANAGER: Mutex<KprobeManager<Mutex<()>>> = Mutex::new(KprobeManager::new());
 static KPROBE_POINT_LIST: Mutex<KprobePointList> = Mutex::new(KprobePointList::new());
 
 pub fn setup_single_step(frame: &mut TrapFrame, step_addr: usize) {
