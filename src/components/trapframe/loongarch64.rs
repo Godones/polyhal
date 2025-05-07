@@ -1,5 +1,7 @@
 use core::ops::{Index, IndexMut};
 
+use kprobe::ProbeArgs;
+
 use crate::components::trapframe::TrapFrameArgs;
 
 /// Saved registers when a trap (interrupt or exception) occurs.
@@ -13,6 +15,29 @@ pub struct TrapFrame {
     pub prmd: usize,
     /// Exception Return Address
     pub era: usize,
+}
+
+impl ProbeArgs for TrapFrame {
+    fn as_any(&self) -> &dyn core::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any {
+        self
+    }
+
+    fn break_address(&self) -> usize {
+        // for loongarch64
+        self.era - 4
+    }
+
+    fn debug_address(&self) -> usize {
+        self.era - 4
+    }
+
+    fn update_pc(&mut self, pc: usize) {
+        self.era = pc;
+    }
 }
 
 impl TrapFrame {

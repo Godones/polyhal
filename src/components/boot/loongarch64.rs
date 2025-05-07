@@ -19,7 +19,7 @@ use crate::components::trap;
 #[no_mangle]
 #[link_section = ".text.entry"]
 unsafe extern "C" fn _start() -> ! {
-    core::arch::asm!("
+    core::arch::naked_asm!("
         ori         $t0, $zero, 0x1     # CSR_DMW1_PLV0
         lu52i.d     $t0, $t0, -2048     # UC, PLV0, 0x8000 xxxx xxxx xxxx
         csrwr       $t0, 0x180          # LOONGARCH_CSR_DMWIN0
@@ -59,7 +59,6 @@ unsafe extern "C" fn _start() -> ! {
         MBUF0 = const loongArch64::consts::LOONGARCH_CSR_MAIL_BUF0,
         entry = sym rust_tmp_main,
         sec_entry = sym _start_secondary,
-        options(noreturn),
     )
 }
 
@@ -70,7 +69,7 @@ unsafe extern "C" fn _start() -> ! {
 #[no_mangle]
 #[link_section = ".text.entry"]
 pub(crate) unsafe extern "C" fn _start_secondary() -> ! {
-    core::arch::asm!(
+    core::arch::naked_asm!(
         "
         ori          $t0, $zero, 0x1     # CSR_DMW1_PLV0
         lu52i.d      $t0, $t0, -2048     # UC, PLV0, 0x8000 xxxx xxxx xxxx
@@ -87,7 +86,6 @@ pub(crate) unsafe extern "C" fn _start_secondary() -> ! {
 
         jirl $zero,$t0,0
         ",
-        options(noreturn),
         MBUF1 = const loongArch64::consts::LOONGARCH_CSR_MAIL_BUF1,
         entry = sym _rust_secondary_main,
     )

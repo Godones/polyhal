@@ -3,7 +3,7 @@ use core::{
     ops::{Index, IndexMut},
 };
 
-use crate::{components::kcontext::KContextArgs, components::pagetable::PageTable};
+use crate::components::{kcontext::KContextArgs, pagetable::PageTable};
 
 /// Save the task context registers.
 macro_rules! save_callee_regs {
@@ -132,14 +132,13 @@ impl IndexMut<KContextArgs> for KContext {
 /// Save the context of current task and switch to new task.
 #[naked]
 pub unsafe extern "C" fn context_switch(from: *mut KContext, to: *const KContext) {
-    core::arch::asm!(
+    core::arch::naked_asm!(
         // Save Kernel Context.
         save_callee_regs!(),
         // Restore Kernel Context.
         restore_callee_regs!(),
         // Return to the caller.
         "ret",
-        options(noreturn)
     )
 }
 
@@ -152,11 +151,11 @@ pub unsafe extern "C" fn context_switch_pt(
     to: *const KContext,
     pt_token: PageTable,
 ) {
-    context_switch_pt_impl(from, to, pt_token.0.0);
+    context_switch_pt_impl(from, to, pt_token.0 .0);
 }
 
 /// Context Switch With Page Table Implement
-/// 
+///
 /// The detail implementation of [context_switch_pt].
 #[naked]
 unsafe extern "C" fn context_switch_pt_impl(
@@ -164,7 +163,7 @@ unsafe extern "C" fn context_switch_pt_impl(
     to: *const KContext,
     pt_token: usize,
 ) {
-    core::arch::asm!(
+    core::arch::naked_asm!(
         // Save Kernel Context.
         save_callee_regs!(),
         // Switch to new page table.
@@ -178,19 +177,17 @@ unsafe extern "C" fn context_switch_pt_impl(
         restore_callee_regs!(),
         // Return to the caller.
         "ret",
-        options(noreturn)
     )
 }
 
 #[naked]
 pub extern "C" fn read_current_tp() -> usize {
     unsafe {
-        asm!(
+        core::arch::naked_asm!(
             "
                 move    $a0, $tp
                 ret
             ",
-            options(noreturn)
         )
     }
 }

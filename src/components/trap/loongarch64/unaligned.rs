@@ -58,7 +58,7 @@ global_asm!(
 
 #[naked]
 unsafe extern "C" fn unaligned_read(addr: u64, value: &mut u64, n: u64, symbol: u32) -> i32 {
-    core::arch::asm!(
+    core::arch::naked_asm!(
         "
             beqz	$a2, 5f
 
@@ -92,13 +92,12 @@ unsafe extern "C" fn unaligned_read(addr: u64, value: &mut u64, n: u64, symbol: 
             fixup_ex 2, 6, 0
             fixup_ex 4, 6, 0
         ",
-        options(noreturn)
     )
 }
 
 #[naked]
 unsafe extern "C" fn unaligned_write(_addr: u64, _value: u64, _n: u64) -> i32 {
-    core::arch::asm!(
+    core::arch::naked_asm!(
         "
         beqz	$a2, 3f
 
@@ -118,7 +117,6 @@ unsafe extern "C" fn unaligned_write(_addr: u64, _value: u64, _n: u64) -> i32 {
     
         fixup_ex 2, 4, 1
         ",
-        options(noreturn)
     )
 }
 

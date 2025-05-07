@@ -28,6 +28,12 @@ impl ProbeArgs for TrapFrame {
     fn debug_address(&self) -> usize {
         self.sepc - 2
     }
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any {
+        self
+    }
+    fn update_pc(&mut self, pc: usize) {
+        self.sepc = pc;
+    }
 }
 
 impl Debug for TrapFrame {

@@ -106,7 +106,7 @@ global_asm!(
 
 #[naked]
 pub unsafe extern "C" fn user_vec() {
-    core::arch::asm!(
+    core::arch::naked_asm!(
         "
             csrrd   $sp,  KSAVE_CTX
             SAVE_REGS
@@ -129,7 +129,6 @@ pub unsafe extern "C" fn user_vec() {
             ret
 
         ",
-        options(noreturn)
     );
 }
 
@@ -137,7 +136,7 @@ pub unsafe extern "C" fn user_vec() {
 #[no_mangle]
 pub extern "C" fn user_restore(context: *mut TrapFrame) {
     unsafe {
-        asm!(
+        core::arch::naked_asm!(
             r"
                 addi.d  $sp,  $sp, -13*8
                 st.d    $ra,  $sp, 0*8
@@ -162,7 +161,6 @@ pub extern "C" fn user_restore(context: *mut TrapFrame) {
 
                 ertn
             ",
-            options(noreturn)
         )
     }
 }
@@ -187,7 +185,7 @@ pub fn run_user_task(cx: &mut TrapFrame) -> EscapeReason {
 
 #[naked]
 pub unsafe extern "C" fn trap_vector_base() {
-    core::arch::asm!(
+    core::arch::naked_asm!(
         "
             .balign 4096
                 // Check whether it was from user privilege.
@@ -213,13 +211,12 @@ pub unsafe extern "C" fn trap_vector_base() {
         trapframe_size = const crate::components::trapframe::TRAPFRAME_SIZE,
         user_vec = sym user_vec,
         trap_handler = sym loongarch64_trap_handler,
-        options(noreturn)
     );
 }
 
 #[naked]
 pub unsafe extern "C" fn tlb_fill() {
-    core::arch::asm!(
+    core::arch::naked_asm!(
         "
         .equ LA_CSR_PGDL,          0x19    /* Page table base address when VA[47] = 0 */
         .equ LA_CSR_PGDH,          0x1a    /* Page table base address when VA[47] = 1 */
@@ -242,7 +239,6 @@ pub unsafe extern "C" fn tlb_fill() {
             csrrd   $t0, LA_CSR_TLBRSAVE
             ertn
         ",
-        options(noreturn)
     );
 }
 

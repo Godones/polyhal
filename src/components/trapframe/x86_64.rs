@@ -3,8 +3,9 @@ use core::{
     ops::{Index, IndexMut},
 };
 
-use x86_64::registers::rflags::RFlags;
 use kprobe::ProbeArgs;
+use x86_64::registers::rflags::RFlags;
+
 use crate::components::{arch::gdt::GdtStruct, trapframe::TrapFrameArgs};
 
 #[repr(C, align(16))]
@@ -91,7 +92,6 @@ pub struct TrapFrame {
     pub fx_area: FxsaveArea,
 }
 
-
 impl ProbeArgs for TrapFrame {
     fn as_any(&self) -> &dyn core::any::Any {
         self
@@ -101,6 +101,22 @@ impl ProbeArgs for TrapFrame {
     }
     fn debug_address(&self) -> usize {
         self.rip
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn core::any::Any {
+        self
+    }
+
+    fn update_pc(&mut self, pc: usize) {
+        self.rip = pc;
+    }
+
+    fn set_single_step(&mut self, enable: bool) {
+        if enable {
+            self.rflags |= 0x100;
+        } else {
+            self.rflags &= !0x100;
+        }
     }
 }
 
@@ -159,7 +175,9 @@ impl IndexMut<TrapFrameArgs> for TrapFrame {
             TrapFrameArgs::SEPC => &mut self.rip,
             TrapFrameArgs::RA => {
                 // set return address, at x86_64 is push return address to rsp, shoule be execute at end.
-                log::warn!("set_ra in x86_64 is push return address to rsp, shoule be execute at end");
+                log::warn!(
+                    "set_ra in x86_64 is push return address to rsp, shoule be execute at end"
+                );
                 self.rsp -= 8;
                 unsafe { (self.rsp as *mut usize).as_mut().unwrap() }
             }

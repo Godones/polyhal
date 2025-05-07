@@ -1,42 +1,20 @@
-use alloc::string::ToString;
+use alloc::{
+    alloc::{alloc, dealloc},
+    string::ToString,
+};
 
 use kprobe::{
-    register_kprobe, unregister_kprobe, KprobeBuilder, KprobeManager, KprobePointList, ProbeArgs,
+    register_kprobe, unregister_kprobe, KprobeAuxiliaryOps, KprobeBuilder, KprobeManager,
+    KprobePointList, ProbeArgs,
 };
 use log::info;
 use polyhal::trapframe::{TrapFrame, TrapFrameArgs};
 use spin::Mutex;
 
-pub static KPROBE_MANAGER: Mutex<KprobeManager<Mutex<()>>> = Mutex::new(KprobeManager::new());
-static KPROBE_POINT_LIST: Mutex<KprobePointList> = Mutex::new(KprobePointList::new());
-
-pub fn setup_single_step(frame: &mut TrapFrame, step_addr: usize) {
-    #[cfg(target_arch = "riscv64")]
-    {
-        frame.sepc = step_addr;
-    }
-    #[cfg(target_arch = "x86_64")]
-    {
-        // x86_64 does not need to set the sepc
-        // frame.sepc = step_addr;
-        frame.rip = step_addr;
-        frame.rflags |= 0x100; // Set the TF flag
-    }
-}
-
-pub fn clear_single_step(frame: &mut TrapFrame, return_addr: usize) {
-    #[cfg(target_arch = "riscv64")]
-    {
-        frame.sepc = return_addr;
-    }
-    #[cfg(target_arch = "x86_64")]
-    {
-        // x86_64 does not need to set the sepc
-        // frame.sepc = return_addr;
-        frame.rip = return_addr;
-        frame.rflags &= !0x100; // Clear the TF flag
-    }
-}
+pub static KPROBE_MANAGER: Mutex<KprobeManager<Mutex<()>, FakeKprobeAuxiliaryOps>> =
+    Mutex::new(KprobeManager::new());
+static KPROBE_POINT_LIST: Mutex<KprobePointList<FakeKprobeAuxiliaryOps>> =
+    Mutex::new(KprobePointList::new());
 
 #[inline(never)]
 fn detect_func(x: usize, y: usize) -> usize {
@@ -69,9 +47,24 @@ fn fault_handler(regs: &dyn ProbeArgs) {
     );
 }
 
+#[derive(Debug)]
+pub struct FakeKprobeAuxiliaryOps;
+impl KprobeAuxiliaryOps for FakeKprobeAuxiliaryOps {
+    fn set_writeable_for_address(_address: usize, _len: usize, _writable: bool) {}
+
+    fn alloc_executable_memory(layout: core::alloc::Layout) -> *mut u8 {
+        let ptr = unsafe { alloc(layout) };
+        ptr
+    }
+
+    fn dealloc_executable_memory(ptr: *mut u8, layout: core::alloc::Layout) {
+        unsafe { dealloc(ptr, layout) }
+    }
+}
+
 pub fn kprobe_test() {
     info!("kprobe test for [detect_func]: {:#x}", detect_func as usize);
-    let kprobe_builder = KprobeBuilder::new(
+    let kprobe_builder = KprobeBuilder::<FakeKprobeAuxiliaryOps>::new(
         None,
         detect_func as usize,
         0,
@@ -94,7 +87,7 @@ pub fn kprobe_test() {
         );
     };
 
-    let builder2 = KprobeBuilder::new(
+    let builder2 = KprobeBuilder::<FakeKprobeAuxiliaryOps>::new(
         Some("kprobe::detect_func".to_string()),
         detect_func as usize,
         0,
