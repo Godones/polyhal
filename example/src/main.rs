@@ -1,5 +1,6 @@
 #![no_std]
 #![no_main]
+#![feature(core_intrinsics)]
 extern crate alloc;
 mod allocator;
 mod debug;
@@ -8,7 +9,6 @@ mod frame;
 mod kprobe;
 mod logging;
 mod pci;
-use alloc::vec::Vec;
 use core::{
     panic::PanicInfo,
     sync::atomic::{AtomicU32, Ordering},
@@ -23,7 +23,7 @@ use polyhal::{
     trap::TrapType::{self, *},
     trapframe::{TrapFrame, TrapFrameArgs},
 };
-use rbpf::ebpf::to_insn_vec;
+use rbpf::assembler::assemble;
 
 pub struct PageAllocImpl;
 
@@ -43,8 +43,27 @@ fn kernel_interrupt(ctx: &mut TrapFrame, trap_type: TrapType) {
     // println!("trap_type @ {:x?} {:#x?}", trap_type, ctx);
     match trap_type {
         Breakpoint => {
+            #[cfg(target_arch = "riscv64")]
+            {
+                ctx.sepc -= 2;
+            }
+            #[cfg(target_arch = "loongarch64")]
+            {
+                ctx.era -= 4;
+            }
             log::info!("BreakPoint @ {:#x}", ctx[TrapFrameArgs::SEPC]);
-            ebreak::EBreak::handle(ctx);
+            let res = ebreak::EBreak::handle(ctx);
+            if res.is_none() {
+                log::warn!("EBreak handler returned None, continuing execution");
+                #[cfg(target_arch = "riscv64")]
+                {
+                    ctx.sepc += 2;
+                }
+                #[cfg(target_arch = "loongarch64")]
+                {
+                    ctx.era += 4;
+                }
+            }
         }
         Debug => {
             log::info!("Debug @ {:#x}", ctx[TrapFrameArgs::SEPC]);
@@ -66,53 +85,51 @@ fn kernel_interrupt(ctx: &mut TrapFrame, trap_type: TrapType) {
         }
         _ => {
             log::warn!("unsuspended trap type: {:?}", trap_type);
+            shutdown();
         }
     }
 }
 
 static CORE_SET: AtomicU32 = AtomicU32::new(0);
 
+#[cfg(not(target_arch = "loongarch64"))] // why loongarch64 not support assemble?
 fn test_bpf_to_bpf_call() {
-    let test_code = rbpf::assembler::assemble(
+    println!("Testing BPF to BPF call...");
+    let test_code = assemble(
         "
-    mov64 r1, 0x10
-    mov64 r2, 0x1
-    call 0x4
-    mov64 r1, 0x1
-    mov64 r2, r0
-    call 0x4
-    exit
-    mov64 r0, r1
-    sub64 r0, r2
-    exit
-    mov64 r0, r2
-    add64 r0, r1
-    exit
-    ",
+        mov64 r1, 0x10
+        mov64 r2, 0x1
+        callx 0x4
+        mov64 r1, 0x1
+        mov64 r2, r0
+        callx 0x4
+        exit
+        mov64 r0, r1
+        sub64 r0, r2
+        exit
+        mov64 r0, r2
+        add64 r0, r1
+        exit
+        ",
     )
     .unwrap();
-    let mut code = to_insn_vec(&test_code);
-    let mut real_code = Vec::new();
-    code.iter_mut().for_each(|insn| {
-        if insn.opc == rbpf::ebpf::CALL {
-            insn.src = 0x1;
-        }
-        real_code.extend_from_slice(&insn.to_array());
-    });
-    let mut vm = rbpf::EbpfVmNoData::new(Some(&real_code)).unwrap();
+    let mut vm = rbpf::EbpfVmNoData::new(Some(&test_code)).unwrap();
     let vm_res = vm.execute_program().unwrap();
     assert_eq!(vm_res, 0x10);
 
     println!("BPF to BPF call without JIT test success!");
-    let mem = frame_alloc(1);
-    let buf = mem.get_buffer();
-    // #[cfg(target_arch = "x86_64")]
-    // {
-    //     let jit = vm.jit_compile(buf).unwrap();
-    //     let vm_res = unsafe { vm.execute_program_jit() }.unwrap();
-    //     assert_eq!(vm_res, 0x10);
-    //     println!("BPF to BPF call with JIT test success!");
-    // }
+
+    #[cfg(target_arch = "x86_64")]
+    {
+        let mem = frame_alloc(1);
+        let buf = mem.get_buffer();
+
+        vm.set_jit_exec_memory(buf).unwrap();
+        vm.jit_compile().unwrap();
+        let vm_res = unsafe { vm.execute_program_jit() }.unwrap();
+        assert_eq!(vm_res, 0x10);
+        println!("BPF to BPF call with JIT test success!");
+    }
 
     println!("BPF to BPF call test success!");
 }
@@ -166,8 +183,15 @@ fn main(hartid: usize) {
     //     log::info!("Core 1 Has Booted successfully!");
     // }
 
+    unsafe { core::intrinsics::breakpoint() }
+
+    // log::info!("test a simple break");
+
     // Test BreakPoint Interrupt
     kprobe::kprobe_test();
+    kprobe::kretprobe_test();
+
+    #[cfg(not(target_arch = "loongarch64"))]
     test_bpf_to_bpf_call();
 
     crate::pci::init();

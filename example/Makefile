@@ -58,7 +58,7 @@ ifeq ($(TEST), true)
 QEMU_EXEC += >output.log 2>&1 || echo "QEMU exited"
 endif
 
-build: env $(KERNEL_BIN) 
+build: $(KERNEL_BIN) 
 
 env:
 	(rustup target list | grep "$(TARGET) (installed)") || rustup target add $(TARGET)

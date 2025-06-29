@@ -3,7 +3,6 @@ use core::{
     ops::{Index, IndexMut},
 };
 
-use kprobe::ProbeArgs;
 use x86_64::registers::rflags::RFlags;
 
 use crate::components::{arch::gdt::GdtStruct, trapframe::TrapFrameArgs};
@@ -90,34 +89,6 @@ pub struct TrapFrame {
 
     // save fx area
     pub fx_area: FxsaveArea,
-}
-
-impl ProbeArgs for TrapFrame {
-    fn as_any(&self) -> &dyn core::any::Any {
-        self
-    }
-    fn break_address(&self) -> usize {
-        self.rip - 1
-    }
-    fn debug_address(&self) -> usize {
-        self.rip
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn core::any::Any {
-        self
-    }
-
-    fn update_pc(&mut self, pc: usize) {
-        self.rip = pc;
-    }
-
-    fn set_single_step(&mut self, enable: bool) {
-        if enable {
-            self.rflags |= 0x100;
-        } else {
-            self.rflags &= !0x100;
-        }
-    }
 }
 
 impl TrapFrame {

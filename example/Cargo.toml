@@ -13,7 +13,8 @@ fdt = "0.1.5"
 buddy_system_allocator = "0.9.1"
 spin = { version = "0.9.8", features = ["mutex"] }
 kprobe = { path = "../../kprobe" }
-rbpf = { path = "../../rbpf", default-features = false }
+rbpf = { git = "https://github.com/qmonnet/rbpf", default-features = false }
+bpf-basic = { git = "https://github.com/Godones/ext_ebpf", default-features = false }
 
 [patch.crates-io.polyhal]
 path = ".."
